@@ -68,7 +68,7 @@ ATestProject2Character::ATestProject2Character()
 	GetCharacterMovement()->AirControl = 0.80f;
 	GetCharacterMovement()->JumpZVelocity = 1000.f;
 	GetCharacterMovement()->GroundFriction = 3.0f;
-	GetCharacterMovement()->MaxWalkSpeed = 6000.0f;
+	GetCharacterMovement()->MaxWalkSpeed = 600.0f;
 	GetCharacterMovement()->MaxFlySpeed = 600.0f;
 
 	// Lock character motion onto the XZ plane, so the character can't move in or out of the screen
@@ -131,9 +131,23 @@ void ATestProject2Character::Shoot()
 			//Set Spawn Collision Handling Override
 			FActorSpawnParameters ActorSpawnParams;
 			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+			
+			FVector supalocation;
+			if (GetVelocity().X < 0.f)
+			{
+				supalocation = GetActorLocation() + FVector(-75.f, 0.f, 0.f);
+			} 
+			else if(GetVelocity().X > 0.f)
+			{
+				supalocation = GetActorLocation() + FVector(75.f, 0.f, 0.f);
+			}
+			else
+			{
+				supalocation = SpawnLocation;
+			}
 
 			// spawn the projectile at the muzzle
-			World->SpawnActor<ABullet>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			World->SpawnActor<ABullet>(ProjectileClass, supalocation, SpawnRotation, ActorSpawnParams);
 
 		}
 	}
