@@ -45,14 +45,16 @@ void ABlueMonster::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	FVector CurrentLocation = GetActorLocation();
-
+	FRotator CurrentRotation = GetActorRotation();
 	if (CurrentLocation.X >= RightEndLocation->X) 
 	{
 		isGoingRight = false;
+		CurrentRotation += FRotator(0.f, 180.f, 0.f);		
 	}
 	else if (CurrentLocation.X <= LeftEndLocation->X) 
 	{
 		isGoingRight = true;
+		CurrentRotation -= FRotator(0.f, 180.f, 0.f);
 	}
 
 	if (isGoingRight) 
@@ -63,7 +65,7 @@ void ABlueMonster::Tick(float DeltaTime)
 	{
 		CurrentLocation.X -= 1.5f + DeltaTime;
 	}
-	SetActorLocation(CurrentLocation);
+	SetActorLocationAndRotation(CurrentLocation, CurrentRotation);
 
 	//FVector x = CharacterSprite->GetPhysicsLinearVelocity();
 	//x.Z += 2.f;
