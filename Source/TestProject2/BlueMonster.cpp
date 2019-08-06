@@ -3,6 +3,7 @@
 
 #include "BlueMonster.h"
 #include "UObjectGlobals.h"
+#include "Kismet/GameplayStatics.h"
 #include <Paper2D\Classes\PaperSpriteComponent.h>
 #include <Engine.h>
 
@@ -26,6 +27,31 @@ ABlueMonster::ABlueMonster(const FObjectInitializer& ObjectInitializer)
 	CharacterSprite->SetMobility(EComponentMobility::Movable);
 	//CharacterSprite->AddForce(FVector(0.f, 10.f, 0.f), TEXT("luu"), true);
 	CharacterSprite->SetSimulatePhysics(true);
+
+	CharacterSprite->SetNotifyRigidBodyCollision(true);
+	CharacterSprite->BodyInstance.SetCollisionProfileName("BlockAll");
+
+	RootComponent = CharacterSprite;
+
+	AudioComponent = NULL;
+}
+
+void ABlueMonster::OnOverLap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)  
+{  
+    // Other Actor is the actor that triggered the event. Check that is not ourself.  
+    if ( (OtherActor != nullptr ) && (OtherActor != this) && ( OtherComp != nullptr ) )  
+    {  
+       if (GEngine) 
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, 
+			FString::Printf(
+				TEXT("OnOverLap %s"),
+				 *OtherActor->GetName()
+				 )
+				 );
+		}
+		UE_LOG(LogTemp, Verbose, TEXT("OnOverLap %s"), *OtherActor->GetName());
+    }  
 }
 
 
@@ -33,6 +59,8 @@ ABlueMonster::ABlueMonster(const FObjectInitializer& ObjectInitializer)
 void ABlueMonster::BeginPlay()
 {
 	Super::BeginPlay();
+	CharacterSprite->OnComponentHit.AddDynamic(this, &ABlueMonster::OnCompHit);
+	CharacterSprite->OnComponentBeginOverlap.AddDynamic(this, &ABlueMonster::OnOverLap);
 	StartLocation = GetActorLocation();
 	RightEndLocation = new FVector((StartLocation.X + 200.f), StartLocation.Y, StartLocation.Z);
 	LeftEndLocation = new FVector((StartLocation.X - 200.f), StartLocation.Y, StartLocation.Z);
@@ -74,3 +102,30 @@ void ABlueMonster::Tick(float DeltaTime)
 	//CharacterSprite->AddForce(FVector::RightVector * 100000, NAME_None, true);
 }
 
+void ABlueMonster::OnCompHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit) 
+{
+	FString name = *OtherActor->GetName();
+	if ((OtherActor != NULL) && (OtherActor != this) && (OtherComp != NULL) && (name.Contains(TEXT("fak"))) )
+	{
+		if (GEngine) 
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, 
+			FString::Printf(
+				TEXT("Hit %s"),
+				 *OtherActor->GetName()
+				 )
+				 );
+		}
+
+		// try and play the sound if specified
+		if (HitSound != NULL)
+		{
+			if (AudioComponent != nullptr) {
+				AudioComponent->Stop();
+			}
+			AudioComponent = UGameplayStatics::SpawnSoundAtLocation(this, HitSound, GetActorLocation());
+		}
+
+		UE_LOG(LogTemp, Verbose, TEXT("Hit %s"), *OtherActor->GetName());
+	}
+}

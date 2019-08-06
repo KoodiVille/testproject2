@@ -16,6 +16,9 @@ ABullet::ABullet()
 	// Players can't walk on it
 	CollisionComp->SetWalkableSlopeOverride(FWalkableSlopeOverride(WalkableSlope_Unwalkable, 0.f));
 	CollisionComp->CanCharacterStepUpOn = ECB_No;
+	CollisionComp->SetSimulatePhysics(true);
+
+	CollisionComp->SetNotifyRigidBodyCollision(true);
 
 	// Set as root component
 	RootComponent = CollisionComp;
@@ -32,10 +35,22 @@ ABullet::ABullet()
 }
 
 void ABullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
-{
+{		
 	// Only add impulse and destroy projectile if we hit a physics
 	if ((OtherActor != NULL) && (OtherActor != this) && (OtherComp != NULL) && OtherComp->IsSimulatingPhysics() && (dynamic_cast<ATestProject2Character*>(OtherActor) == nullptr))
 	{
+			if (GEngine) 
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, 
+			FString::Printf(
+				TEXT("Bullet %s"),
+				 *OtherActor->GetName()
+				 )
+				 );
+		}
+
+		UE_LOG(LogTemp, Verbose, TEXT("Bullet Hit %s"), *OtherActor->GetName());
+
 		OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
 
 		Destroy();
