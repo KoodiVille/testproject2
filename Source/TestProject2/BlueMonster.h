@@ -42,4 +42,6 @@ private:
 	FVector* RightEndLocation;
 	FVector* LeftEndLocation;
 	bool isGoingRight;
+	void Patrol(float DeltaTime);
+	void SetBounds();
 };

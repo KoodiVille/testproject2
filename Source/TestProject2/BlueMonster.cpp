@@ -36,6 +36,63 @@ ABlueMonster::ABlueMonster(const FObjectInitializer& ObjectInitializer)
 	AudioComponent = NULL;
 }
 
+void ABlueMonster::SetBounds()
+{
+	FHitResult OutHit;
+	FVector Start = GetActorLocation() - FVector(0.f, 0.f, 150.f);
+	FVector End = Start + FVector(0.f, 0.f, -Start.Z * 1000);
+	FCollisionQueryParams CollisionParams;
+
+	if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_WorldStatic, CollisionParams)) {
+		if (OutHit.bBlockingHit)
+		{
+			FVector orig;
+			FVector ext;
+			OutHit.GetActor()->GetActorBounds(true, orig, ext);
+			RightEndLocation = new FVector(orig.X + ext.X - 20, orig.Y + ext.Y, orig.Z + ext.Z);
+			LeftEndLocation = new FVector(orig.X - ext.X + 20.f, orig.Y - ext.Y, orig.Z - ext.Z);
+		}
+	}
+}
+
+void DebugLocation(ABlueMonster actor, FVector Start, FVector End, FVector orig, FVector ext, FHitResult OutHit)
+{
+	DrawDebugLine(actor.GetWorld(), Start, End, FColor::Green, false, 1, 0, 1);
+
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Yellow, FString::Printf(TEXT("left: %s"), *orig.ToString()));
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Yellow, FString::Printf(TEXT("Right: %s"), *ext.ToString()));
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Yellow, FString::Printf(TEXT("You are hitting: %s"), *OutHit.GetComponent()->GetName()));
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, FString::Printf(TEXT("You are hitting: %s"), *OutHit.GetActor()->GetName()));
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, FString::Printf(TEXT("Impact Point: %s"), *OutHit.ImpactPoint.ToString()));
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, FString::Printf(TEXT("Normal Point: %s"), *OutHit.ImpactNormal.ToString()));
+}
+
+void ABlueMonster::Patrol(float DeltaTime)
+{
+	FVector CurrentLocation = GetActorLocation();
+	FRotator CurrentRotation = GetActorRotation();
+	if (CurrentLocation.X >= RightEndLocation->X)
+	{
+		isGoingRight = false;
+		CurrentRotation += FRotator(0.f, 180.f, 0.f);
+	}
+	else if (CurrentLocation.X <= LeftEndLocation->X)
+	{
+		isGoingRight = true;
+		CurrentRotation -= FRotator(0.f, 180.f, 0.f);
+	}
+
+	if (isGoingRight)
+	{
+		CurrentLocation.X += 1.5f + DeltaTime;
+	}
+	else
+	{
+		CurrentLocation.X -= 1.5f + DeltaTime;
+	}
+	SetActorLocationAndRotation(CurrentLocation, CurrentRotation);
+}
+
 void ABlueMonster::OnOverLap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)  
 {  
     // Other Actor is the actor that triggered the event. Check that is not ourself.  
@@ -43,12 +100,7 @@ void ABlueMonster::OnOverLap(UPrimitiveComponent* OverlappedComp, AActor* OtherA
     {  
        if (GEngine) 
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, 
-			FString::Printf(
-				TEXT("OnOverLap %s"),
-				 *OtherActor->GetName()
-				 )
-				 );
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("OnOverLap %s"),*OtherActor->GetName()));
 		}
 		UE_LOG(LogTemp, Verbose, TEXT("OnOverLap %s"), *OtherActor->GetName());
     }  
@@ -62,44 +114,15 @@ void ABlueMonster::BeginPlay()
 	CharacterSprite->OnComponentHit.AddDynamic(this, &ABlueMonster::OnCompHit);
 	CharacterSprite->OnComponentBeginOverlap.AddDynamic(this, &ABlueMonster::OnOverLap);
 	StartLocation = GetActorLocation();
-	RightEndLocation = new FVector((StartLocation.X + 200.f), StartLocation.Y, StartLocation.Z);
-	LeftEndLocation = new FVector((StartLocation.X - 200.f), StartLocation.Y, StartLocation.Z);
 	isGoingRight = true;
+	SetBounds();
 }
 
 // Called every frame
 void ABlueMonster::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	FVector CurrentLocation = GetActorLocation();
-	FRotator CurrentRotation = GetActorRotation();
-	if (CurrentLocation.X >= RightEndLocation->X) 
-	{
-		isGoingRight = false;
-		CurrentRotation += FRotator(0.f, 180.f, 0.f);		
-	}
-	else if (CurrentLocation.X <= LeftEndLocation->X) 
-	{
-		isGoingRight = true;
-		CurrentRotation -= FRotator(0.f, 180.f, 0.f);
-	}
-
-	if (isGoingRight) 
-	{
-		CurrentLocation.X += 1.5f + DeltaTime;
-	} 
-	else 
-	{
-		CurrentLocation.X -= 1.5f + DeltaTime;
-	}
-	SetActorLocationAndRotation(CurrentLocation, CurrentRotation);
-
-	//FVector x = CharacterSprite->GetPhysicsLinearVelocity();
-	//x.Z += 2.f;
-	//CharacterSprite->SetPhysicsLinearVelocity(x);
-
-	//CharacterSprite->AddForce(FVector::RightVector * 100000, NAME_None, true);
+	Patrol(DeltaTime);
 }
 
 void ABlueMonster::OnCompHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit) 
@@ -109,12 +132,7 @@ void ABlueMonster::OnCompHit(UPrimitiveComponent* HitComp, AActor* OtherActor, U
 	{
 		if (GEngine) 
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, 
-			FString::Printf(
-				TEXT("Hit %s"),
-				 *OtherActor->GetName()
-				 )
-				 );
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Hit %s"),*OtherActor->GetName()));
 		}
 
 		// try and play the sound if specified

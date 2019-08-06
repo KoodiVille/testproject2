@@ -39,14 +39,9 @@ void ABullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitive
 	// Only add impulse and destroy projectile if we hit a physics
 	if ((OtherActor != NULL) && (OtherActor != this) && (OtherComp != NULL) && OtherComp->IsSimulatingPhysics() && (dynamic_cast<ATestProject2Character*>(OtherActor) == nullptr))
 	{
-			if (GEngine) 
+		if (GEngine) 
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, 
-			FString::Printf(
-				TEXT("Bullet %s"),
-				 *OtherActor->GetName()
-				 )
-				 );
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Bullet %s"),*OtherActor->GetName()));
 		}
 
 		UE_LOG(LogTemp, Verbose, TEXT("Bullet Hit %s"), *OtherActor->GetName());
