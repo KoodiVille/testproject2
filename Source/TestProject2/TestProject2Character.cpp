@@ -121,7 +121,6 @@ void ATestProject2Character::BeginPlay()
 
         TimelineCallback.BindUFunction(this, FName("SetGunSpeedValue"));
         TimelineFinishedCallback.BindUFunction(this, FName("SetGunSpeedState"));
-
 		MyTimeline = NewObject<UTimelineComponent>(this, FName("Gun Speed Animation"));
         MyTimeline->AddInterpFloat(GunSpeedCurve, TimelineCallback);
         MyTimeline->SetTimelineFinishedFunc(TimelineFinishedCallback);
@@ -304,7 +303,7 @@ void ATestProject2Character::DamageTimer()
 void ATestProject2Character::SetGunSpeedValue()
 {
 	TimelineValue = MyTimeline->GetPlaybackPosition();
-    CurveFloatValue = PreviousGunSpeed + GunSpeedValue*GunSpeedCurve->GetFloatValue(TimelineValue);
+	CurveFloatValue = PreviousGunSpeed + GunSpeedValue*GunSpeedCurve->GetFloatValue(TimelineValue);
 	GunSpeed = FMath::Clamp(CurveFloatValue*FullHealth, 0.0f, FullGunSpeed);
 	GunSpeedPercentage = FMath::Clamp(CurveFloatValue, 0.0f, 1.0f);
 }
