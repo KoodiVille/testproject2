@@ -121,7 +121,7 @@ void ATestProject2Character::BeginPlay()
 
         TimelineCallback.BindUFunction(this, FName("SetGunSpeedValue"));
         TimelineFinishedCallback.BindUFunction(this, FName("SetGunSpeedState"));
-		MyTimeline = NewObject<UTimelineComponent>(this, FName("Gun Speed Animation"));
+        MyTimeline = NewObject<UTimelineComponent>(this, FName("Gun Speed Animation"));
         MyTimeline->AddInterpFloat(GunSpeedCurve, TimelineCallback);
         MyTimeline->SetTimelineFinishedFunc(TimelineFinishedCallback);
 		MyTimeline->RegisterComponent();
