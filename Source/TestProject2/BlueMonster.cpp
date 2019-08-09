@@ -4,6 +4,7 @@
 #include "BlueMonster.h"
 #include "UObjectGlobals.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 #include <Paper2D\Classes\PaperSpriteComponent.h>
 #include <Engine.h>
 
@@ -34,6 +35,8 @@ ABlueMonster::ABlueMonster(const FObjectInitializer& ObjectInitializer)
 	RootComponent = CharacterSprite;
 
 	AudioComponent = NULL;
+
+	bCanApplyDamage = false;
 }
 
 void ABlueMonster::SetBounds()
@@ -93,17 +96,36 @@ void ABlueMonster::Patrol(float DeltaTime)
 	SetActorLocationAndRotation(CurrentLocation, CurrentRotation);
 }
 
-void ABlueMonster::OnOverLap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)  
+void ABlueMonster::OnOverLapBegin(class UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)  
 {  
     // Other Actor is the actor that triggered the event. Check that is not ourself.  
     if ( (OtherActor != nullptr ) && (OtherActor != this) && ( OtherComp != nullptr ) )  
     {  
        if (GEngine) 
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("OnOverLap %s"),*OtherActor->GetName()));
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("OnOverLap G %s"),*OtherActor->GetName()));
 		}
 		UE_LOG(LogTemp, Verbose, TEXT("OnOverLap %s"), *OtherActor->GetName());
+
+		bCanApplyDamage = true;
+		MyCharacter = Cast<AActor>(OtherActor);
+		MonsterHit = SweepResult;
+        GetWorldTimerManager().SetTimer(DamageTimerHandle, this, &ABlueMonster::ApplyDamage, 2.2f, true, 0.0f);
     }  
+}
+
+void ABlueMonster::OnOverLapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+    bCanApplyDamage = false;
+    GetWorldTimerManager().ClearTimer(DamageTimerHandle);
+}
+
+void ABlueMonster::ApplyDamage()
+{
+    if(bCanApplyDamage)
+    {
+        UGameplayStatics::ApplyPointDamage(MyCharacter, 200.0f, GetActorLocation(), MonsterHit, nullptr, this, MonsterDamage);
+    }
 }
 
 
@@ -112,7 +134,8 @@ void ABlueMonster::BeginPlay()
 {
 	Super::BeginPlay();
 	CharacterSprite->OnComponentHit.AddDynamic(this, &ABlueMonster::OnCompHit);
-	CharacterSprite->OnComponentBeginOverlap.AddDynamic(this, &ABlueMonster::OnOverLap);
+	CharacterSprite->OnComponentBeginOverlap.AddDynamic(this, &ABlueMonster::OnOverLapBegin);
+	CharacterSprite->OnComponentEndOverlap.AddDynamic(this, &ABlueMonster::OnOverLapEnd);
 	StartLocation = GetActorLocation();
 	isGoingRight = true;
 	SetBounds();

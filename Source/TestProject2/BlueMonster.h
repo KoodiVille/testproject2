@@ -17,16 +17,34 @@ public:
 	ABlueMonster();
 	ABlueMonster(const FObjectInitializer& ObjectInitializer);
 	virtual void Tick(float DeltaTime) override;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UDamageType> MonsterDamage;
+
+	UPROPERTY(EditAnywhere)
+	AActor* MyCharacter;
+
+	UPROPERTY(EditAnywhere)
+	FHitResult MonsterHit;
+
+	bool bCanApplyDamage;
+	FTimerHandle DamageTimerHandle;
 	
 	UFUNCTION()
 	void OnCompHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	UFUNCTION()
-	void OnOverLap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void OnOverLapBegin(class UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-		/** Sound to play each time we hit monster */
+	UFUNCTION()
+	void OnOverLapEnd(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UFUNCTION()
+	void ApplyDamage();
+
+	/** Sound to play each time we hit monster */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
-		class USoundBase* HitSound;
+	class USoundBase* HitSound;
 
 	UAudioComponent* AudioComponent;
 

@@ -6,6 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/AudioComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
@@ -14,6 +15,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
 #include "AGun.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "TimerManager.h"
+#include "Components/TimelineComponent.h"
+
+class UAudioComponent;
 
 DEFINE_LOG_CATEGORY_STATIC(SideScrollerCharacter, Log, All);
 
@@ -88,6 +94,39 @@ ATestProject2Character::ATestProject2Character()
 
 	// Enable replication on the Sprite component so animations show up when networked
 	GetSprite()->SetIsReplicated(true);
+
+	AudioComponent = NULL;
+}
+
+void ATestProject2Character::BeginPlay() 
+{
+	Super::BeginPlay();
+
+	FullHealth = 1000.0f;
+	Health = FullHealth;
+	HealthPercentage = 1.0f;
+	bCanBeDamaged = true;
+
+	FullGunSpeed = 100.0f;
+	GunSpeed = FullGunSpeed;
+	GunSpeedPercentage = 1.0f;
+	PreviousGunSpeed = GunSpeedPercentage;
+	GunSpeedValue = 0.0f;
+	bCanUseGun = true;
+
+	if (GunSpeedCurve)
+    {
+        FOnTimelineFloat TimelineCallback;
+        FOnTimelineEventStatic TimelineFinishedCallback;
+
+        TimelineCallback.BindUFunction(this, FName("SetGunSpeedValue"));
+        TimelineFinishedCallback.BindUFunction(this, FName("SetGunSpeedState"));
+
+		MyTimeline = NewObject<UTimelineComponent>(this, FName("Gun Speed Animation"));
+        MyTimeline->AddInterpFloat(GunSpeedCurve, TimelineCallback);
+        MyTimeline->SetTimelineFinishedFunc(TimelineFinishedCallback);
+		MyTimeline->RegisterComponent();
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -117,7 +156,7 @@ void ATestProject2Character::Tick(float DeltaSeconds)
 void ATestProject2Character::Shoot()
 {
 	// try and fire a projectile
-	if (ProjectileClass != NULL)
+	if (ProjectileClass != NULL && !FMath::IsNearlyZero(GunSpeed, 0.001f) && bCanUseGun)
 	{
 		UWorld* const World = GetWorld();
 		if (World != NULL)
@@ -150,23 +189,28 @@ void ATestProject2Character::Shoot()
 			World->SpawnActor<ABullet>(ProjectileClass, supalocation, SpawnRotation, ActorSpawnParams);
 
 		}
-	}
 
-	// try and play the sound if specified
-	if (FireSound != NULL)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
-	}
-
-	// try and play a firing animation if specified
-	if (FireAnimation != NULL)
-	{
-		// Get the animation object for the arms mesh
-		UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
-		if (AnimInstance != NULL)
+		// try and play the sound if specified
+		if (FireSound != NULL)
 		{
-			AnimInstance->Montage_Play(FireAnimation, 1.f);
+			UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
 		}
+
+		// try and play a firing animation if specified
+		if (FireAnimation != NULL)
+		{
+			// Get the animation object for the arms mesh
+			UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
+			if (AnimInstance != NULL)
+			{
+				AnimInstance->Montage_Play(FireAnimation, 1.f);
+			}
+		}
+
+		if(MyTimeline != nullptr) MyTimeline->Stop();
+		GetWorldTimerManager().ClearTimer(GunSpeedTimerHandle);
+		SetGunSpeedChange(-20.0f);
+		GetWorldTimerManager().SetTimer(GunSpeedTimerHandle, this, &ATestProject2Character::UpdateGunSpeed, 5.0f, false);
 	}
 }
 
@@ -226,4 +270,98 @@ void ATestProject2Character::UpdateCharacter()
 			Controller->SetControlRotation(FRotator(0.0f, 0.0f, 0.0f));
 		}
 	}
+}
+
+float ATestProject2Character::GetHealth()
+{
+	return HealthPercentage;
+}
+
+float ATestProject2Character::GetGunSpeed()
+{
+	return GunSpeedPercentage;
+}
+
+FText ATestProject2Character::GetHealthIntText()
+{
+	int32 HP = FMath::RoundHalfFromZero(HealthPercentage * 100);
+	FString HPS = FString::FromInt(HP);
+	FString HealthHUD = HPS + FString(TEXT("%"));
+	FText HPText = FText::FromString(HealthHUD);
+	return HPText;
+}
+
+void ATestProject2Character::SetDamageState()
+{
+	bCanBeDamaged = true;
+}
+
+void ATestProject2Character::DamageTimer()
+{
+	GetWorldTimerManager().SetTimer(MemberTimerHandle, this, &ATestProject2Character::SetDamageState, 2.0f, false);
+}
+
+void ATestProject2Character::SetGunSpeedValue()
+{
+	TimelineValue = MyTimeline->GetPlaybackPosition();
+    CurveFloatValue = PreviousGunSpeed + GunSpeedValue*GunSpeedCurve->GetFloatValue(TimelineValue);
+	GunSpeed = FMath::Clamp(CurveFloatValue*FullHealth, 0.0f, FullGunSpeed);
+	GunSpeedPercentage = FMath::Clamp(CurveFloatValue, 0.0f, 1.0f);
+}
+
+void ATestProject2Character::SetGunSpeedState()
+{
+	bCanUseGun = true;
+	GunSpeedValue = 0.0;
+}
+
+bool ATestProject2Character::PlayFlash()
+{
+	if(redFlash)
+	{
+		redFlash = false;
+		return true;
+	}
+
+	return false;
+}
+
+float ATestProject2Character::TakeDamage(float DamageAmount, struct FDamageEvent const & DamageEvent, class AController * EventInstigator, AActor * DamageCauser)
+{
+	bCanBeDamaged = false;
+	redFlash = true;
+	UpdateHealth(-DamageAmount);
+	DamageTimer();
+	// try and play the sound if specified
+	if (HitSound != NULL)
+	{
+		if (AudioComponent != nullptr) {
+			AudioComponent->Stop();
+		}
+		AudioComponent = UGameplayStatics::SpawnSoundAtLocation(this, HitSound, GetActorLocation());
+	}
+	return DamageAmount;
+}
+
+void ATestProject2Character::UpdateHealth(float HealthChange)
+{
+	Health = FMath::Clamp(Health += HealthChange, 0.0f, FullHealth);
+	HealthPercentage = Health/FullHealth;
+}
+
+void ATestProject2Character::UpdateGunSpeed()
+{
+	PreviousGunSpeed = GunSpeedPercentage;
+	GunSpeedPercentage = GunSpeed/FullGunSpeed;
+	GunSpeedValue = 1.0f;
+	if(MyTimeline != nullptr) MyTimeline->PlayFromStart();
+}
+
+void ATestProject2Character::SetGunSpeedChange(float GunSpeedChange)
+{
+	bCanUseGun = false;
+	PreviousGunSpeed = GunSpeedPercentage;
+	GunSpeedValue = (GunSpeedChange/FullGunSpeed);
+
+	if(MyTimeline != nullptr) MyTimeline->PlayFromStart();
 }

@@ -8,6 +8,7 @@
 #include "TestProject2Character.generated.h"
 
 class UTextRenderComponent;
+class UTimelineComponent;
 class AGun;
 
 /**
@@ -32,6 +33,7 @@ class ATestProject2Character : public APaperCharacter
 	class USpringArmComponent *CameraBoom;
 
 	UTextRenderComponent *TextComponent;
+
 	virtual void Tick(float DeltaSeconds) override;
 
 protected:
@@ -96,4 +98,85 @@ public:
 	FORCEINLINE class UCameraComponent *GetSideViewCameraComponent() const { return SideViewCameraComponent; }
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent *GetCameraBoom() const { return CameraBoom; }
+
+	virtual void BeginPlay() override;
+
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const & DamageEvent, class AController * EventInstigator, AActor * DamageCauser);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float FullHealth;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float Health;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float HealthPercentage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GunSpeed")
+	float GunSpeedPercentage;
+
+ 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float FullGunSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GunSpeed")
+	float GunSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GunSpeed")
+	float PreviousGunSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GunSpeed")
+	float GunSpeedValue;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	bool redFlash;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GunSpeed")
+	UCurveFloat* GunSpeedCurve;
+
+	float CurveFloatValue;
+	float TimelineValue;
+	bool bCanUseGun;
+
+	UTimelineComponent* MyTimeline;
+	struct FTimerHandle MemberTimerHandle;
+	struct FTimerHandle GunSpeedTimerHandle;
+
+	UFUNCTION(BlueprintPure, Category = "Health")
+	float GetHealth();
+
+	UFUNCTION(BlueprintPure, Category = "GunSpeed")
+	float GetGunSpeed();
+
+	UFUNCTION(BlueprintPure, Category = "Health")
+	FText GetHealthIntText();
+
+	UFUNCTION()
+	void DamageTimer();
+
+	UFUNCTION()
+	void SetDamageState();
+
+	UFUNCTION()
+	void SetGunSpeedValue();
+
+	UFUNCTION()
+	void SetGunSpeedState();
+
+	UFUNCTION()
+	void SetGunSpeedChange(float GunSpeedChange);
+
+	UFUNCTION()
+	void UpdateGunSpeed();
+
+	UFUNCTION(BlueprintPure, Category = "Health")
+	bool PlayFlash();
+
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void UpdateHealth(float HealthChange);
+
+	/** Sound to play each time we get hit by monster */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
+	class USoundBase* HitSound;
+
+	UAudioComponent* AudioComponent;
 };
