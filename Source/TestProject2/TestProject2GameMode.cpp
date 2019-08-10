@@ -12,6 +12,8 @@ ATestProject2GameMode::ATestProject2GameMode()
 	// Set default pawn class to our character
 	DefaultPawnClass = ATestProject2Character::StaticClass();	
 
+	PrimaryActorTick.bCanEverTick = true;
+
 	static ConstructorHelpers::FClassFinder<UUserWidget> HealthBar(TEXT("/Game/UI/Health_UI"));
 	HUDWidgetClass = HealthBar.Class;
 
@@ -47,6 +49,7 @@ void ATestProject2GameMode::Tick(float DeltaTime)
 	{
 		if (FMath::IsNearlyZero(MyCharacter->GetHealth(), 0.001f))
 		{
+			UE_LOG(LogTemp, Verbose, TEXT("GameOver "));
 			SetCurrentState(EGamePlayState::EGameOver);
 		}
 	}
